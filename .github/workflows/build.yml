@@ -1,0 +1,28 @@
+name: "Build Armbian for Rock 4 SE"
+on:
+  workflow_dispatch:
+jobs:
+  build-armbian:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get current date
+        if: inputs.releaseVersion == ''
+        id: date
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        with:
+          format: "YYYY-MM-DD"
+
+      - uses: oprypin/find-latest-tag@v1
+        id: latest
+        with:
+          repository: armbian/build
+          releases-only: true  # Only build relevant tags that have a GitHub release for them.
+        
+      - uses: trappiz/armbian-rock4se-build@main
+        with:
+          armbian_token:          "${{ secrets.GITHUB_TOKEN }}"  # GitHub token
+          armbian_release:        "noble"                        # userspace
+          armbian_target:         "build"                        # build=image, kernel=kernel
+          armbian_ui:             "server"                       # minimal, server, xfce, gnome, cinnamon, i3-wm, kde-plasma
+          armbian_board:          "rock-4se"                     # build target
+          armbian_release_tittle: "${{ steps.latest.outputs.tag }} ${{ steps.date.outputs.time }}" # Release title

@@ -1,6 +1,11 @@
 name: "Build Armbian for Rock 4 SE"
 on:
   workflow_dispatch:
+    inputs:
+      armbian_release_tag:
+        description: 'Tag of new Armbian release'
+        required: false
+
 jobs:
   build-armbian:
     runs-on: ubuntu-latest

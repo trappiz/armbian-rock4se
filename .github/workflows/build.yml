@@ -18,7 +18,7 @@ jobs:
           repository: armbian/build
           releases-only: true  # Only build relevant tags that have a GitHub release for them.
         
-      - uses: trappiz/armbian-rock4se-build@main
+      - uses: armbian/build@main
         with:
           armbian_token:          "${{ secrets.GITHUB_TOKEN }}"  # GitHub token
           armbian_release:        "noble"                        # userspace

@@ -1,0 +1,50 @@
+name: Watch Armbian Release
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Every hour
+  workflow_dispatch:
+
+jobs:
+  watch-armbian:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get latest release tag
+        id: get_release
+        run: |
+          latest=$(curl -s https://api.github.com/repos/armbian/build/releases/latest | jq -r .tag_name)
+          echo "Latest: $latest"
+          echo "tag=$latest" >> $GITHUB_OUTPUT
+
+      - name: Check last known release
+        id: check_release
+        run: |
+          LAST_KNOWN=$(cat last_tag.txt 2>/dev/null || echo "none")
+          echo "Last known release: $LAST_KNOWN"
+          echo "last_known=$LAST_KNOWN" >> $GITHUB_OUTPUT
+          if [ "$LAST_KNOWN" != "${{ steps.get_release.outputs.tag }}" ]; then
+            echo "new_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "new_release=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger armbian-rock4se/build.yml
+        if: steps.check_release.outputs.new_release == 'true'
+        run: |
+          curl -X POST https://api.github.com/repos/trappiz/armbian-rock4se/actions/workflows/build.yml/dispatches \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.TRIGGER_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"ref":"main", "inputs": {"armbian_release_tag": "${{ steps.get_release.outputs.tag }}"}}'
+
+      - name: Save latest tag
+        if: steps.check_release.outputs.new_release == 'true'
+        run: |
+          echo "${{ steps.get_release.outputs.tag }}" > last_tag.txt
+
+      - name: Upload state
+        if: steps.check_release.outputs.new_release == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-state
+          path: last_tag.txt

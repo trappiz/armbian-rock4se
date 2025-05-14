@@ -2,7 +2,7 @@ name: Watch Armbian Release
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Every hour
+    - cron: '20 4 * * *'  # Run 04:20 daily
   workflow_dispatch:
 
 jobs:

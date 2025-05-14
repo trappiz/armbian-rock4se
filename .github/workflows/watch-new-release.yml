@@ -24,9 +24,9 @@ jobs:
           echo "Latest: $latest"
           echo "tag=$latest" >> $GITHUB_OUTPUT¨
 
-      - name: Ensure last_tag.txt exists
+      - name: Ensure fallback file
         run: |
-          touch last_tag.txt
+          test -f last_tag.txt || echo "none" > last_tag.txt
 
       - name: Check last known release
         id: check_release

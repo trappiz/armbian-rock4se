@@ -46,10 +46,10 @@ jobs:
         if: steps.check_release.outputs.new_release == 'true'
         run: |
           curl -X POST https://api.github.com/repos/trappiz/armbian-rock4se/actions/workflows/build.yml/dispatches \
-  b         -H "Accept: application/vnd.github+json" \
-   b        -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-   b        -H "Content-Type: application/json" \
-   b        -d '{"ref":"main", "inputs": {"armbian_release_tag": "${{ steps.get_release.outputs.tag }}"}}'
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"ref":"main", "inputs": {"armbian_release_tag": "${{ steps.get_release.outputs.tag }}"}}'
 
       - name: Update last_tag.txt
         if: steps.check_release.outputs.new_release == 'true'

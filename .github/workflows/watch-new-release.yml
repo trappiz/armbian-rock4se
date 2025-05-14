@@ -15,23 +15,25 @@ jobs:
         uses: actions/cache@v4
         with:
           path: last_tag.txt
-          key: armbian-last-release
+          key: armbian-last-release-v1
+          restore-keys: |
+            armbian-last-release
+
+      - name: Ensure fallback file
+        run: |
+          test -f last_tag.txt || echo "none" > last_tag.txt
 
       - name: Get latest release tag
         id: get_release
         run: |
           latest=$(curl -s https://api.github.com/repos/armbian/build/releases/latest | jq -r .tag_name)
           echo "Latest: $latest"
-          echo "tag=$latest" >> $GITHUB_OUTPUT¨
-
-      - name: Ensure fallback file
-        run: |
-          test -f last_tag.txt || echo "none" > last_tag.txt
+          echo "tag=$latest" >> $GITHUB_OUTPUT
 
       - name: Check last known release
         id: check_release
         run: |
-          LAST_KNOWN=$(cat last_tag.txt 2>/dev/null || echo "none")
+          LAST_KNOWN=$(cat last_tag.txt)
           echo "Last known release: $LAST_KNOWN"
           echo "last_known=$LAST_KNOWN" >> $GITHUB_OUTPUT
           if [ "$LAST_KNOWN" != "${{ steps.get_release.outputs.tag }}" ]; then
@@ -49,12 +51,14 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"ref":"main", "inputs": {"armbian_release_tag": "${{ steps.get_release.outputs.tag }}"}}'
 
-      - name: Save latest tag to file
+      - name: Update last_tag.txt
         if: steps.check_release.outputs.new_release == 'true'
         run: |
           echo "${{ steps.get_release.outputs.tag }}" > last_tag.txt
 
-      - name: Update cache (dummy step)
+      - name: Save updated cache
         if: steps.check_release.outputs.new_release == 'true'
-        run: |
-          echo "Cache will automatically update if 'path' changes content."
+        uses: actions/cache/save@v4
+        with:
+          path: last_tag.txt
+          key: armbian-last-release-v1

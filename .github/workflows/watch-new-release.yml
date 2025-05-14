@@ -8,13 +8,25 @@ on:
 jobs:
   watch-armbian:
     runs-on: ubuntu-latest
+
     steps:
+      - name: Restore cached last_tag.txt
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: last_tag.txt
+          key: armbian-last-release
+
       - name: Get latest release tag
         id: get_release
         run: |
           latest=$(curl -s https://api.github.com/repos/armbian/build/releases/latest | jq -r .tag_name)
           echo "Latest: $latest"
-          echo "tag=$latest" >> $GITHUB_OUTPUT
+          echo "tag=$latest" >> $GITHUB_OUTPUT¨
+
+      - name: Ensure last_tag.txt exists
+        run: |
+          touch last_tag.txt
 
       - name: Check last known release
         id: check_release
@@ -37,14 +49,12 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"ref":"main", "inputs": {"armbian_release_tag": "${{ steps.get_release.outputs.tag }}"}}'
 
-      - name: Save latest tag
+      - name: Save latest tag to file
         if: steps.check_release.outputs.new_release == 'true'
         run: |
           echo "${{ steps.get_release.outputs.tag }}" > last_tag.txt
 
-      - name: Upload state
+      - name: Update cache (dummy step)
         if: steps.check_release.outputs.new_release == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-state
-          path: last_tag.txt
+        run: |
+          echo "Cache will automatically update if 'path' changes content."

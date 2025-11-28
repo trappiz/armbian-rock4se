@@ -3,31 +3,84 @@ on:
   workflow_dispatch:
     inputs:
       armbian_release_tag:
-        description: 'Tag of new Armbian release'
+        description: 'Tag of new Armbian release (optional, defaults to latest)'
         required: false
 
 jobs:
   build-armbian:
     runs-on: ubuntu-latest
     steps:
+
       - name: Get current date
-        if: inputs.releaseVersion == ''
         id: date
         uses: Kaven-Universe/github-action-current-date-time@v1
         with:
           format: "YYYY-MM-DD"
 
-      - uses: oprypin/find-latest-tag@v1
+      - name: Find latest Armbian release if input not provided
+        if: inputs.armbian_release_tag == ''
+        uses: oprypin/find-latest-tag@v1
         id: latest
         with:
           repository: armbian/build
-          releases-only: true  # Only build relevant tags that have a GitHub release for them.
-        
+          releases-only: true
+
+      - name: Select final build tag
+        id: tag
+        run: |
+          if [ -z "${{ inputs.armbian_release_tag }}" ]; then
+            TAG="${{ steps.latest.outputs.tag }}"
+          else
+            TAG="${{ inputs.armbian_release_tag }}"
+          fi
+          echo "selected=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Get previous Armbian release tag
+        id: prev
+        run: |
+          PREV=$(curl -s "https://api.github.com/repos/armbian/build/releases" | \
+            jq -r 'map(select(.tag_name != null)) | sort_by(.published_at) | reverse | .[1].tag_name')
+
+          if [ "$PREV" == "null" ] || [ -z "$PREV" ]; then
+            PREV="${{ steps.tag.outputs.selected }}"
+          fi
+
+          echo "previous=$PREV" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog (previous → selected)
+        id: changelog
+        run: |
+          PREV="${{ steps.prev.outputs.previous }}"
+          NEW="${{ steps.tag.outputs.selected }}"
+
+          RAW=$(curl -s "https://api.github.com/repos/armbian/build/compare/$PREV...$NEW" | jq -r .body)
+
+          # If API doesn't return useful body, build custom commit list
+          if [ "$RAW" == "null" ] || [ -z "$RAW" ]; then
+            COMMITS=$(curl -s "https://api.github.com/repos/armbian/build/compare/$PREV...$NEW" | \
+              jq -r '.commits[].commit.message')
+            RAW="### 🔄 Changes from $PREV → $NEW\n\n$COMMITS"
+          fi
+
+          # ---- Markdown Cleanup / Formatting ----
+          CLEAN=$(echo "$RAW" | \
+            sed 's/\r//g' | \
+            sed 's/^ *//g' | \
+            sed '/^$/N;/^\n$/D' )
+
+          # Trim if too long (GitHub release body limit safety)
+          CLEAN=$(echo "$CLEAN" | head -n 250)
+
+          echo "clean<<EOF" >> $GITHUB_OUTPUT
+          echo "$CLEAN" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - uses: armbian/build@main
         with:
-          armbian_token:          "${{ secrets.GITHUB_TOKEN }}"  # GitHub token
-          armbian_release:        "noble"                        # userspace
-          armbian_target:         "build"                        # build=image, kernel=kernel
-          armbian_ui:             "server"                       # minimal, server, xfce, gnome, cinnamon, i3-wm, kde-plasma
-          armbian_board:          "rock-4se"                     # build target
-          armbian_release_tittle: "${{ steps.latest.outputs.tag }} ${{ steps.date.outputs.time }}" # Release title
+          armbian_token:          "${{ secrets.GITHUB_TOKEN }}"
+          armbian_release:        "noble"
+          armbian_target:         "build"
+          armbian_ui:             "server"
+          armbian_board:          "rock-4se"
+          armbian_release_tittle: "🐧 Armbian ${{ steps.tag.outputs.selected }} | Rock 4 SE | ${{ steps.date.outputs.time }}"
+          armbian_release_body:   ${{ steps.changelog.outputs.clean }}

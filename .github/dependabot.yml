@@ -5,11 +5,7 @@
 
 version: 2
 updates:
-  # 🐳 Scan GitHub Actions workflow Docker images (including runner step images)
   - package-ecosystem: "docker"
-    directory: "/"  # Dependabot will check files at repo root
+    directory: "/.github/workflows/"
     schedule:
       interval: "weekly"
-    file-patterns:
-      - ".github/workflows/*.yml"
-      - ".github/workflows/*.yaml"
